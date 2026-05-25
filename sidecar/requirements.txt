@@ -1,0 +1,5 @@
+# Dependencias del sidecar de GlassMD.
+# Versión fija con == para builds reproducibles.
+# Actualizar con criterio: cada versión nueva de markitdown
+# puede cambiar qué formatos soporta o cómo se llaman los atributos.
+markitdown[all]==0.1.1
