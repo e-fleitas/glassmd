@@ -1,4 +1,4 @@
-# MarkItDown GUI
+# Glassmd - MarkItDown GUI
 
 <div align="center">
 
