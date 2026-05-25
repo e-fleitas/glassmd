@@ -242,3 +242,14 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/venv,python,linux,rust,windows
+
+# GlassMD — específicos del proyecto
+.venv/
+src-tauri/binaries/*.exe
+src-tauri/binaries/*-linux
+src-tauri/binaries/*-gnu
+!src-tauri/binaries/.gitkeep
+
+# Distribución y builds
+dist/
+src-tauri/target/
