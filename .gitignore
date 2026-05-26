@@ -253,3 +253,9 @@ src-tauri/binaries/*-gnu
 # Distribución y builds
 dist/
 src-tauri/target/
+
+node_modules/
+
+# PyInstaller
+build/
+*.spec

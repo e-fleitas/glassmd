@@ -20,9 +20,7 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "transparent": true,
-        "vibrancy": "under-window",
-        "visualEffectState": "active"
+        "transparent": true
       }
     ],
     "security": {
@@ -43,14 +41,5 @@
       "binaries/markitdown-sidecar"
     ],
     "resources": []
-  },
-  "plugins": {
-    "shell": {
-      "open": false,
-      "sidecar": true
-    },
-    "dialog": {
-      "all": true
-    }
   }
 }

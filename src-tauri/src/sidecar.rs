@@ -121,7 +121,7 @@ pub async fn run_conversion(
 
     if stdout.is_empty() {
         // If stdout is empty, check stderr for clues.
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let _stderr = String::from_utf8_lossy(&output.stderr);
         return Err(SidecarError::EmptyOutput);
     }
 
