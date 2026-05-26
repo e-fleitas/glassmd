@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Content Security Policy (CSP).
+      Le dice al WebView qué recursos puede cargar.
+      
+      - default-src 'self'     → solo archivos locales de la app
+      - script-src 'self'      → solo scripts locales (no CDNs externos)
+      - style-src 'unsafe-inline' → permite estilos inline (necesario por ahora)
+      - img-src blob: data:    → permite imágenes generadas en memoria
+      
+      Esto coincide con lo definido en tauri.conf.json y es una capa
+      extra de seguridad: aunque alguien inyecte HTML, no puede cargar
+      scripts externos.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:" />
+
+    <title>GlassMD</title>
+</head>
+
+<body>
+    <!--
+      La app entera vive en este div.
+      main.ts lo usa como punto de montaje.
+      Está vacío intencionalmente: TypeScript construye el DOM dinámicamente.
+      Esto nos da control total sobre la estructura sin mezclar HTML y lógica.
+    -->
+    <div id="app"></div>
+
+    <!--
+      type="module" es obligatorio para que Vite procese el TypeScript.
+      Sin esto, el navegador intentaría ejecutar el .ts directamente y fallaría.
+      Vite intercepta esta línea y sirve el JS compilado en su lugar.
+    -->
+    <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
