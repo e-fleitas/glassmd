@@ -60,7 +60,7 @@ function buildUI(): string {
         </svg>
 
         <p class="drop-hint" id="drop-hint">
-          Arrastra un archivo aquí
+          Drop files here
         </p>
 
         <p id="extensions-list" class="extensions-list">
@@ -69,7 +69,7 @@ function buildUI(): string {
       </div>
 
       <button id="btn-explore" class="btn-explore">
-        Seleccionar
+        Choose file or folder
       </button>
 
       <button id="btn-convert" class="btn-convert" disabled>
@@ -111,7 +111,7 @@ function setState(newState: AppState, message?: string): void {
 
     switch (newState) {
         case "idle":
-            dropHint.textContent = "Arrastra un archivo o carpeta";
+            dropHint.textContent = "Drop a file or a folder";
             btnConvert.disabled = true;
             statusArea.style.display = "none";
             break;
