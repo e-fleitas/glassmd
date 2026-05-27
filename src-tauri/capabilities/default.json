@@ -1,0 +1,14 @@
+{
+    "identifier": "default",
+    "description": "Permisos por defecto para GlassMD",
+    "windows": [
+        "main"
+    ],
+    "permissions": [
+        "core:default",
+        "dialog:allow-open",
+        "dialog:allow-save",
+        "shell:allow-execute",
+        "shell:allow-open"
+    ]
+}

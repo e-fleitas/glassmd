@@ -2,6 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./styles/globals.css";
 import "./styles/components.css";
 
@@ -45,7 +46,7 @@ function buildUI(): string {
 
       <header class="header">
         <h1 class="title">GlassMD</h1>
-        <p class="subtitle">Convierte cualquier documento a Markdown</p>
+        <p class="subtitle">Turn any file into a Markdown</p>
       </header>
 
       <div id="drop-zone" class="drop-zone">
@@ -64,7 +65,7 @@ function buildUI(): string {
         </p>
 
         <p id="extensions-list" class="extensions-list">
-          Cargando formatos soportados...
+          loading supported formats...
         </p>
       </div>
 
@@ -73,7 +74,7 @@ function buildUI(): string {
       </button>
 
       <button id="btn-convert" class="btn-convert" disabled>
-        Convertir
+        Convert it!
       </button>
 
       <div id="status-area" class="status-area" style="display:none;">
@@ -127,21 +128,21 @@ function setState(newState: AppState, message?: string): void {
 
         case "loading":
             dropZone.classList.add("state-loading");
-            dropHint.textContent = "Convirtiendo...";
+            dropHint.textContent = "Converting...";
             btnConvert.disabled = true;
             statusArea.style.display = "none";
             break;
 
         case "success":
             dropZone.classList.add("state-success");
-            dropHint.textContent = "✓ Conversión completada";
+            dropHint.textContent = "✓ File Converted";
             btnConvert.disabled = false;
             statusArea.style.display = "none";
             break;
 
         case "error":
             dropZone.classList.add("state-loaded"); // salmón para error también
-            dropHint.textContent = "✕ Error en la conversión";
+            dropHint.textContent = "✕ Error during convertion";
             btnConvert.disabled = false;
             if (message) {
                 statusArea.style.display = "block";
@@ -159,7 +160,7 @@ async function loadSupportedExtensions(): Promise<void> {
         el.textContent = extensions.map(e => `.${e}`).join("  ");
     } catch (err) {
         const el = document.getElementById("extensions-list")!;
-        el.textContent = "⚠ Error al conectar con el backend";
+        el.textContent = "⚠ Backend conection error";
         console.error("[GlassMD] Error:", err);
     }
 }
@@ -180,7 +181,7 @@ async function convertFile(): Promise<void> {
     } catch (err) {
         const error = err as CommandError;
         setState("error", error.message ?? String(err));
-        console.error("[GlassMD] Error de conversión:", error);
+        console.error("[GlassMD] Convertion Error:", error);
     }
 }
 
@@ -200,9 +201,12 @@ function showResult(result: ConversionResult): void {
 }
 
 // ── Drag & Drop ───────────────────────────────────────────────────────────────
+// En Tauri v2 el WebView no recibe eventos drop del DOM estándar.
+// Tauri los intercepta a nivel OS y los re-emite como eventos propios.
 function setupDragAndDrop(): void {
     const dropZone = document.getElementById("drop-zone")!;
 
+    // Estilos visuales durante el drag — estos sí funcionan con DOM estándar
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("drag-over");
@@ -212,23 +216,28 @@ function setupDragAndDrop(): void {
         dropZone.classList.remove("drag-over");
     });
 
-    dropZone.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        dropZone.classList.remove("drag-over");
+    // Escuchamos el evento nativo de Tauri en lugar del DOM drop
 
-        const files = e.dataTransfer?.files;
-        if (!files || files.length === 0) return;
-
-        const file = files[0];
-        const filePath = (file as File & { path: string }).path;
-
-        if (!filePath) {
-            setState("error", "No se pudo obtener el path del archivo o elemento.");
-            return;
+    getCurrentWindow().onDragDropEvent((event) => {
+        if (event.payload.type === "over") {
+            dropZone.classList.add("drag-over");
         }
 
-        state.filePath = filePath;
-        setState("loaded");
+        if (event.payload.type === "leave") {
+            dropZone.classList.remove("drag-over");
+        }
+
+        if (event.payload.type === "drop") {
+            dropZone.classList.remove("drag-over");
+
+            const paths = event.payload.paths;
+            if (!paths || paths.length === 0) return;
+
+            // Tomamos el primer path — batch conversion viene después
+            state.filePath = paths[0];
+            setState("loaded");
+            console.log("[GlassMD] Archivo recibido:", paths[0]);
+        }
     });
 }
 
