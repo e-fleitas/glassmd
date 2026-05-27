@@ -1,51 +1,44 @@
 // src/main.ts
-//
-// Punto de entrada del frontend de GlassMD.
-// Este archivo es el único responsable de:
-//   1. Construir el DOM inicial
-//   2. Verificar comunicación con el backend Rust
-//   3. Configurar drag & drop
-//
-// NOTA: Este es el frontend MÍNIMO para verificar que todo el stack
-// funciona. El diseño visual final viene en un hito posterior.
 
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import "./styles/globals.css";
+import "./styles/components.css";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
-// Espejo del struct ConversionResult definido en commands.rs.
-// TypeScript no puede leer Rust directamente — mantenemos estos tipos
-// sincronizados manualmente. Si cambias el struct en Rust, actualiza aquí.
 interface ConversionResult {
     markdown: string;
     title: string | null;
     duration_ms: number;
 }
 
-// Espejo de CommandError de commands.rs
 interface CommandError {
     message: string;
     error_type: string;
 }
 
+// ── Estado de la aplicación ──────────────────────────────────────────────────
+// Un objeto central que representa qué está pasando en la app.
+// En lugar de leer el DOM para saber el estado, leemos este objeto.
+type AppState = "idle" | "loaded" | "loading" | "success" | "error";
+
+const state = {
+    current: "idle" as AppState,
+    filePath: null as string | null,
+};
+
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-// Esperamos a que el DOM esté listo antes de manipularlo.
-// Es el equivalente moderno del viejo window.onload.
 document.addEventListener("DOMContentLoaded", async () => {
-    // Construimos el HTML de la app e lo inyectamos en #app
     const app = document.getElementById("app")!;
     app.innerHTML = buildUI();
 
-    // Verificamos comunicación con Rust al arrancar.
-    // Si esto falla, hay un problema de configuración fundamental.
     await loadSupportedExtensions();
-
-    // Activamos el drag & drop sobre toda la ventana
     setupDragAndDrop();
+    setupExploreButton();
+    setupConvertButton();
 });
 
 // ── Construcción del DOM ──────────────────────────────────────────────────────
-// Retorna el HTML inicial como string.
-// Usamos IDs específicos para luego referenciar los elementos con getElementById.
 function buildUI(): string {
     return `
     <div class="container">
@@ -55,113 +48,161 @@ function buildUI(): string {
         <p class="subtitle">Convierte cualquier documento a Markdown</p>
       </header>
 
-      <main>
-        <!-- Zona de drop -->
-        <div id="drop-zone" class="drop-zone">
-          <p class="drop-hint">Arrastra un archivo aquí</p>
-          <p id="extensions-list" class="extensions-list">
-            Cargando formatos soportados...
-          </p>
-        </div>
+      <div id="drop-zone" class="drop-zone">
+        <svg class="drop-icon" viewBox="0 0 48 48" fill="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 8L24 32M24 8L16 16M24 8L32 16"
+                stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 36H40"
+                stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round"/>
+        </svg>
 
-        <!-- Estado / resultado -->
-        <div id="status-area" class="status-area" style="display:none;">
-          <p id="status-message"></p>
-        </div>
+        <p class="drop-hint" id="drop-hint">
+          Arrastra un archivo aquí
+        </p>
 
-        <!-- Área de resultado Markdown (cruda por ahora) -->
-        <div id="result-area" class="result-area" style="display:none;">
-          <div class="result-header">
-            <span id="result-title"></span>
-            <span id="result-duration"></span>
-          </div>
-          <pre id="result-content"></pre>
+        <p id="extensions-list" class="extensions-list">
+          Cargando formatos soportados...
+        </p>
+      </div>
+
+      <button id="btn-explore" class="btn-explore">
+        Seleccionar
+      </button>
+
+      <button id="btn-convert" class="btn-convert" disabled>
+        Convertir
+      </button>
+
+      <div id="status-area" class="status-area" style="display:none;">
+        <p id="status-message"></p>
+      </div>
+
+      <div id="result-area" class="result-area" style="display:none;">
+        <div class="result-header">
+          <span id="result-title"></span>
+          <span id="result-duration"></span>
         </div>
-      </main>
+        <pre id="result-content" class="result-content"></pre>
+      </div>
 
     </div>
   `;
 }
 
-// ── Comunicación con Rust ─────────────────────────────────────────────────────
+// ── Gestión de estado ─────────────────────────────────────────────────────────
+// Un solo lugar donde cambia el estado visual de la app.
+// Nunca modifiques clases de estado desde otro lugar.
+function setState(newState: AppState, message?: string): void {
+    const dropZone = document.getElementById("drop-zone")!;
+    const dropHint = document.getElementById("drop-hint")!;
+    const btnConvert = document.getElementById("btn-convert") as HTMLButtonElement;
+    const statusArea = document.getElementById("status-area")!;
+    const statusMessage = document.getElementById("status-message")!;
 
-// Llama al comando Rust get_supported_extensions y muestra la lista en el UI.
-// Este es el primer invoke() real — si funciona, Rust y el frontend se hablan.
-async function loadSupportedExtensions(): Promise<void> {
-    try {
-        // invoke<string[]> le dice a TypeScript que esperamos un array de strings.
-        // Rust tiene registrado este comando en lib.rs → commands::get_supported_extensions
-        const extensions = await invoke<string[]>("get_supported_extensions");
+    // Limpiamos todos los estados anteriores antes de aplicar el nuevo
+    dropZone.classList.remove(
+        "state-loaded", "state-loading", "state-success", "state-error"
+    );
 
-        const el = document.getElementById("extensions-list")!;
-        el.textContent = extensions.map(e => `.${e}`).join("  ");
+    state.current = newState;
 
-        console.log("[GlassMD] Backend Rust respondió correctamente.", extensions);
-    } catch (err) {
-        // Si falla, mostramos el error en lugar de las extensiones.
-        // Esto nos ayuda a diagnosticar problemas de configuración.
-        const el = document.getElementById("extensions-list")!;
-        el.textContent = "⚠ Error al conectar con el backend";
-        console.error("[GlassMD] Error invocando get_supported_extensions:", err);
+    switch (newState) {
+        case "idle":
+            dropHint.textContent = "Arrastra un archivo o carpeta";
+            btnConvert.disabled = true;
+            statusArea.style.display = "none";
+            break;
+
+        case "loaded":
+            dropZone.classList.add("state-loaded");
+            // Mostramos el nombre del archivo, no el path completo
+            const fileName = state.filePath?.split("/").pop() ?? "";
+            dropHint.textContent = `📄 ${fileName}`;
+            btnConvert.disabled = false;
+            statusArea.style.display = "none";
+            break;
+
+        case "loading":
+            dropZone.classList.add("state-loading");
+            dropHint.textContent = "Convirtiendo...";
+            btnConvert.disabled = true;
+            statusArea.style.display = "none";
+            break;
+
+        case "success":
+            dropZone.classList.add("state-success");
+            dropHint.textContent = "✓ Conversión completada";
+            btnConvert.disabled = false;
+            statusArea.style.display = "none";
+            break;
+
+        case "error":
+            dropZone.classList.add("state-loaded"); // salmón para error también
+            dropHint.textContent = "✕ Error en la conversión";
+            btnConvert.disabled = false;
+            if (message) {
+                statusArea.style.display = "block";
+                statusMessage.textContent = message;
+            }
+            break;
     }
 }
 
-// Convierte un archivo llamando al comando Rust convert_file.
-// Recibe el path absoluto del archivo (extraído del evento de drop).
-async function convertFile(filePath: string): Promise<void> {
-    const statusArea = document.getElementById("status-area")!;
-    const statusMessage = document.getElementById("status-message")!;
-    const resultArea = document.getElementById("result-area")!;
+// ── Comunicación con Rust ─────────────────────────────────────────────────────
+async function loadSupportedExtensions(): Promise<void> {
+    try {
+        const extensions = await invoke<string[]>("get_supported_extensions");
+        const el = document.getElementById("extensions-list")!;
+        el.textContent = extensions.map(e => `.${e}`).join("  ");
+    } catch (err) {
+        const el = document.getElementById("extensions-list")!;
+        el.textContent = "⚠ Error al conectar con el backend";
+        console.error("[GlassMD] Error:", err);
+    }
+}
 
-    // Mostramos estado de carga
-    resultArea.style.display = "none";
-    statusArea.style.display = "block";
-    statusMessage.textContent = `Convirtiendo: ${filePath}...`;
+async function convertFile(): Promise<void> {
+    if (!state.filePath) return;
+
+    setState("loading");
 
     try {
         const result = await invoke<ConversionResult>("convert_file", {
-            filePath,
+            filePath: state.filePath,
         });
 
-        // Éxito: mostramos el resultado
-        statusArea.style.display = "none";
-        showResult(result, filePath);
+        setState("success");
+        showResult(result);
 
     } catch (err) {
-        // El error que llega aquí es el CommandError serializado por Rust.
-        // Lo casteamos para poder acceder a sus campos tipados.
         const error = err as CommandError;
-        statusMessage.textContent = `Error: ${error.message ?? String(err)}`;
+        setState("error", error.message ?? String(err));
         console.error("[GlassMD] Error de conversión:", error);
     }
 }
 
 // ── Resultado ─────────────────────────────────────────────────────────────────
-
-function showResult(result: ConversionResult, filePath: string): void {
+function showResult(result: ConversionResult): void {
     const resultArea = document.getElementById("result-area")!;
     const resultTitle = document.getElementById("result-title")!;
     const resultDuration = document.getElementById("result-duration")!;
     const resultContent = document.getElementById("result-content")!;
 
-    // Título: usamos el del documento si existe, sino el nombre del archivo
-    const fileName = filePath.split("/").pop() ?? filePath;
+    const fileName = state.filePath?.split("/").pop() ?? "";
     resultTitle.textContent = result.title ?? fileName;
     resultDuration.textContent = `${result.duration_ms}ms`;
     resultContent.textContent = result.markdown;
 
-    resultArea.style.display = "block";
+    resultArea.style.display = "flex";
 }
 
 // ── Drag & Drop ───────────────────────────────────────────────────────────────
-// Configuramos los eventos de drag & drop sobre la ventana completa.
-// Importante: debemos llamar preventDefault() en dragover para que
-// el browser no abra el archivo con su comportamiento por defecto.
-
 function setupDragAndDrop(): void {
     const dropZone = document.getElementById("drop-zone")!;
 
-    // Necesario para que el drop funcione: sin esto el browser ignora el drop
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("drag-over");
@@ -175,24 +216,53 @@ function setupDragAndDrop(): void {
         e.preventDefault();
         dropZone.classList.remove("drag-over");
 
-        // Extraemos los archivos del evento de drop
         const files = e.dataTransfer?.files;
         if (!files || files.length === 0) return;
 
-        // Por ahora procesamos solo el primer archivo.
-        // La conversión batch (múltiples archivos) viene en un hito posterior.
         const file = files[0];
-
-        // IMPORTANTE: en el WebView de Tauri, file.path contiene el path
-        // absoluto del sistema de archivos. En un navegador normal esto
-        // sería vacío por seguridad, pero Tauri lo expone intencionalmente.
         const filePath = (file as File & { path: string }).path;
 
         if (!filePath) {
-            console.error("[GlassMD] No se pudo obtener el path del archivo.");
+            setState("error", "No se pudo obtener el path del archivo o elemento.");
             return;
         }
 
-        await convertFile(filePath);
+        state.filePath = filePath;
+        setState("loaded");
     });
+}
+
+// ── Botón Explorar ────────────────────────────────────────────────────────────
+function setupExploreButton(): void {
+    const btn = document.getElementById("btn-explore")!;
+
+    btn.addEventListener("click", async () => {
+        // Abre el diálogo nativo del OS para seleccionar un archivo.
+        // Los filtros limitan qué archivos ve el usuario — misma lógica
+        // que la whitelist de security.rs pero en la UI.
+        const selected = await open({
+            multiple: false,
+            filters: [{
+                name: "Documentos soportados",
+                extensions: [
+                    "pdf", "docx", "pptx", "xlsx", "xls", "epub",
+                    "html", "htm", "csv", "json", "xml",
+                    "jpg", "jpeg", "png", "gif",
+                    "md", "txt", "ipynb", "zip", "msg",
+                ],
+            }],
+        });
+
+        // `open()` devuelve null si el usuario canceló
+        if (!selected) return;
+
+        state.filePath = selected as string;
+        setState("loaded");
+    });
+}
+
+// ── Botón Convertir ───────────────────────────────────────────────────────────
+function setupConvertButton(): void {
+    const btn = document.getElementById("btn-convert")!;
+    btn.addEventListener("click", () => convertFile());
 }

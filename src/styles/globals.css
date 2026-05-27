@@ -1,0 +1,156 @@
+/* src/styles/globals.css
+ *
+ * Variables globales, reset y estilos base.
+ * Todo lo que es "el sistema de diseño" vive aquí.
+ * Si quieres cambiar la paleta entera, solo tocas :root.
+ */
+
+/* ── Variables del sistema de diseño ──────────────────────────────────────── */
+:root {
+    /* Paleta de gradiente — los colores del fondo orgánico */
+    --grad-lavender: #c8b8f8;
+    --grad-blue: #b8d4f8;
+    --grad-mint: #b8f0e0;
+    --grad-peach: #f8d8c8;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.12);
+    --glass-bg-hover: rgba(255, 255, 255, 0.18);
+    --glass-border: rgba(255, 255, 255, 0.30);
+    --glass-blur: blur(20px);
+
+    /* Estados de color (todos en versión pastel translúcida) */
+    --state-idle: rgba(255, 255, 255, 0.12);
+    --state-loaded: rgba(248, 180, 160, 0.25);
+    /* salmón pastel */
+    --state-loading: rgba(180, 200, 248, 0.25);
+    /* azul pastel   */
+    --state-success: rgba(160, 240, 200, 0.25);
+    /* menta pastel  */
+
+    /* Tipografía */
+    --font-ui: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+    /* Texto */
+    --text-primary: rgba(30, 20, 60, 0.90);
+    --text-secondary: rgba(30, 20, 60, 0.55);
+    --text-hint: rgba(30, 20, 60, 0.38);
+
+    /* Espaciado y forma */
+    --radius-sm: 10px;
+    --radius-md: 18px;
+    --radius-lg: 28px;
+    --radius-xl: 40px;
+
+    /* Sombras */
+    --shadow-sm: 0 2px 12px rgba(150, 130, 200, 0.15);
+    --shadow-md: 0 8px 32px rgba(150, 130, 200, 0.20);
+    --shadow-lg: 0 16px 48px rgba(150, 130, 200, 0.25);
+
+    /* Transiciones */
+    --transition-fast: 150ms ease;
+    --transition-normal: 300ms ease;
+    --transition-slow: 600ms ease;
+
+    /* Snake border — velocidad por estado */
+    --snake-duration-idle: 4s;
+    --snake-duration-loading: 0.8s;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+/* Eliminamos inconsistencias entre navegadores/WebViews */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Body y fondo gradiente ────────────────────────────────────────────────── */
+html,
+body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    /* La app no hace scroll — es una ventana fija */
+    font-family: var(--font-ui);
+    color: var(--text-primary);
+}
+
+body {
+    /*
+   * El gradiente orgánico animado.
+   * Usamos background-size más grande que 100% para que
+   * la animación tenga espacio para moverse suavemente.
+   */
+    background: linear-gradient(135deg,
+            var(--grad-lavender) 0%,
+            var(--grad-blue) 30%,
+            var(--grad-mint) 65%,
+            var(--grad-peach) 100%);
+    background-size: 300% 300%;
+    animation: gradient-shift 12s ease infinite;
+}
+
+/* El gradiente se mueve lentamente — da la sensación de estar vivo */
+@keyframes gradient-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* ── Contenedor raíz ───────────────────────────────────────────────────────── */
+#app {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* ── Scrollbar personalizada (para el área de resultado) ───────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Utilidades ────────────────────────────────────────────────────────────── */
+/* Clase reutilizable para el efecto vidrio — la base de toda la UI */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+/* Texto truncado con ellipsis — útil para nombres de archivo largos */
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

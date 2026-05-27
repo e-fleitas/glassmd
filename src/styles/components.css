@@ -1,0 +1,339 @@
+/* src/styles/components.css
+ *
+ * Estilos de cada componente de la UI.
+ * Depende de las variables definidas en globals.css.
+ * Orden: layout → header → drop zone → botón → estados → resultado
+ */
+
+/* ── Layout principal ──────────────────────────────────────────────────────── */
+.container {
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.header {
+    text-align: center;
+    padding: 8px 0 4px;
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+.subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+/* ── Drop Zone ─────────────────────────────────────────────────────────────── */
+/*
+ * La zona de drop es el componente central.
+ * Usa la clase .glass como base y agrega el snake border encima.
+ * El truco del snake border:
+ *   - Un pseudo-elemento ::before con gradiente cónico rotante
+ *   - Clip-path lo recorta para que solo se vea el borde
+ *   - El contenido real queda encima con z-index
+ */
+.drop-zone {
+    position: relative;
+    padding: 48px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition:
+        background var(--transition-normal),
+        box-shadow var(--transition-normal);
+
+    /* Glassmorphism base */
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+
+    /* Ocultamos el borde normal — el snake lo reemplaza */
+    border: none;
+    /* Necesario para que ::before no se salga del border-radius */
+    overflow: hidden;
+}
+
+/* Snake border — el pseudo-elemento que rota */
+.drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    /* Grosor del borde */
+
+    /*
+   * El gradiente cónico crea el efecto de luz viajando.
+   * Solo una porción del círculo tiene color — el resto es transparente.
+   * La animación rota este gradiente 360° continuamente.
+   */
+    background: conic-gradient(from var(--snake-angle, 0deg),
+            transparent 0%,
+            transparent 70%,
+            rgba(180, 160, 240, 0.6) 80%,
+            rgba(160, 200, 255, 0.9) 90%,
+            rgba(180, 160, 240, 0.6) 100%);
+
+    /*
+   * Mask trick: hace que solo se vea el borde (el padding exterior)
+   * y el interior queda transparente — así no tapa el contenido.
+   */
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+
+    animation: snake-rotate var(--snake-duration-idle) linear infinite;
+    z-index: 0;
+}
+
+/* El contenido de la drop zone debe quedar sobre el pseudo-elemento */
+.drop-zone>* {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes snake-rotate {
+    from {
+        --snake-angle: 0deg;
+    }
+
+    to {
+        --snake-angle: 360deg;
+    }
+}
+
+/*
+ * Para que la custom property --snake-angle sea animable,
+ * necesitamos registrarla. Esto es CSS Houdini — soportado
+ * en WebKit moderno que usa Tauri.
+ */
+@property --snake-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+/* Ícono de upload (SVG inline via CSS) */
+.drop-icon {
+    width: 48px;
+    height: 48px;
+    opacity: 0.5;
+    transition: opacity var(--transition-normal);
+}
+
+.drop-hint {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.extensions-list {
+    font-size: 0.72rem;
+    color: var(--text-hint);
+    text-align: center;
+    line-height: 1.8;
+    max-width: 480px;
+    font-family: var(--font-mono);
+}
+
+/* ── Botón "Explorar archivo" ──────────────────────────────────────────────── */
+.btn-explore {
+    align-self: center;
+    padding: 10px 28px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: var(--font-ui);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+        background var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+
+    /* Glassmorphism */
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-explore:hover {
+    background: var(--glass-bg-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-explore:active {
+    transform: translateY(0px);
+}
+
+/* ── Botón "Convertir" ─────────────────────────────────────────────────────── */
+.btn-convert {
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+        background var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+
+    /* Snake border igual que drop zone */
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-convert::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(from var(--snake-angle, 0deg),
+            transparent 0%,
+            transparent 70%,
+            rgba(180, 160, 240, 0.5) 80%,
+            rgba(160, 200, 255, 0.8) 90%,
+            rgba(180, 160, 240, 0.5) 100%);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: snake-rotate var(--snake-duration-idle) linear infinite;
+}
+
+.btn-convert>* {
+    position: relative;
+    z-index: 1;
+}
+
+.btn-convert:hover {
+    background: var(--glass-bg-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-convert:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── Estados de la Drop Zone ───────────────────────────────────────────────── */
+/*
+ * Los estados se aplican agregando clases desde TypeScript.
+ * Nunca modificamos estilos inline desde JS — solo clases.
+ */
+
+/* Hover durante el drag */
+.drop-zone.drag-over {
+    background: var(--glass-bg-hover);
+    box-shadow: var(--shadow-lg);
+    transform: scale(1.01);
+}
+
+/* Archivo cargado — salmón pastel */
+.drop-zone.state-loaded {
+    background: var(--state-loaded);
+}
+
+/* Convirtiendo — azul pastel + snake acelerado */
+.drop-zone.state-loading {
+    background: var(--state-loading);
+    --snake-duration-idle: var(--snake-duration-loading);
+}
+
+/* Éxito — menta pastel */
+.drop-zone.state-success {
+    background: var(--state-success);
+}
+
+/* ── Área de estado (mensajes inline) ──────────────────────────────────────── */
+.status-area {
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-align: center;
+
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+}
+
+/* ── Área de resultado ─────────────────────────────────────────────────────── */
+.result-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.result-header span:first-child {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.result-header span:last-child {
+    font-size: 0.75rem;
+    color: var(--text-hint);
+    font-family: var(--font-mono);
+}
+
+.result-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+}
